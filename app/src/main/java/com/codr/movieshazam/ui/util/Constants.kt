@@ -25,4 +25,8 @@ object Constants {
             outlinedIcon = Icons.Rounded.HistoryToggleOff
         )
     )
+    const val RECORD = "record"
+    const val STOP_RECORD = "stop_record"
+    const val PLAY = "play"
+    const val STOP_PLAYING = "stop_playing"
 }

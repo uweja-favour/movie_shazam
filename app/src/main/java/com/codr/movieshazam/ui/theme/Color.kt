@@ -14,7 +14,7 @@ val Pink40 = Color(0xFF7D5260)
 
 val AppBackGround
 @Composable
-get() = if (isSystemInDarkTheme()) Color.Black else Color.White
+get() = if (isSystemInDarkTheme()) Color.Black.copy(alpha = .1f) else Color.White
 
 val TextColor
 @Composable
