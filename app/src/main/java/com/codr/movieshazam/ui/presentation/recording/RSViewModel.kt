@@ -60,7 +60,7 @@ class RSViewModel @Inject constructor(
             recorder.stop()
             isRecording.value = false
             audioFile?.let {
-                val newRecording = Recording(it.name, it.absolutePath, getCurrentDate())
+                val newRecording = Recording(fileName = it.name, filePath = it.absolutePath, dateAdded = getCurrentDate())
                 listOfRecordings.value += newRecording
                 saveRecording()
             }
@@ -105,5 +105,9 @@ class RSViewModel @Inject constructor(
         audioFile = null
         player.stop()
         recorder.stop()
+    }
+
+    fun onTogglePlayBackCompleted() {
+        isPlaying.value = false
     }
 }

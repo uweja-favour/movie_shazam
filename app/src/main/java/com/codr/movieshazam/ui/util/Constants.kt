@@ -29,4 +29,5 @@ object Constants {
     const val STOP_RECORD = "stop_record"
     const val PLAY = "play"
     const val STOP_PLAYING = "stop_playing"
+    const val PLAYBACK_COMPLETE = "playback_completed"
 }

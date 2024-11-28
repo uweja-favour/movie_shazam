@@ -4,6 +4,14 @@ import android.content.Context
 import android.media.MediaPlayer
 import android.util.Log
 import androidx.core.net.toUri
+import com.codr.movieshazam.AnEvent
+import com.codr.movieshazam.EventController
+import com.codr.movieshazam.ui.util.Constants.PLAYBACK_COMPLETE
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import java.io.File
 
 class AndroidAudioPlayer(
@@ -16,8 +24,15 @@ class AndroidAudioPlayer(
     override fun playFile(file: File) {
         try {
             if (isPaused) {
-                player?.start()
-                isPaused = false
+                player?.apply {
+                    start()
+                    isPaused = false
+                    setOnCompletionListener {
+                        Log.d("Playback", "Playback completed for file: ${file.absolutePath}")
+                        onPlaybackCompleted()
+                    }
+                }
+
             } else {
                 // Stop and release any existing player instance
                 player?.stop()
@@ -29,6 +44,11 @@ class AndroidAudioPlayer(
                     setDataSource(context, file.toUri())
                     prepare()
                     start()
+
+                    setOnCompletionListener {
+                        Log.d("Playback", "Playback completed for file: ${file.absolutePath}")
+                        onPlaybackCompleted()
+                    }
                 }
             }
 
@@ -72,6 +92,18 @@ class AndroidAudioPlayer(
             }
         } catch (e: Exception) {
             Log.e("Playback", "Error PAUSING playback: ${e.message}", e)
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun onPlaybackCompleted() {
+        isPaused = false
+        GlobalScope.launch(Dispatchers.Main) {
+            EventController.sendEvent(
+                AnEvent(
+                    name = PLAYBACK_COMPLETE,
+                )
+            )
         }
     }
 }

@@ -15,11 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.codr.movieshazam.playback.AndroidAudioPlayer
-import com.codr.movieshazam.record.AndroidAudioRecorder
 import com.codr.movieshazam.ui.bottom_navbar.BottomNavigationBar
 import com.codr.movieshazam.ui.presentation.recording.RSViewModel
-import com.codr.movieshazam.ui.presentation.recording.RecordingScreen
+import com.codr.movieshazam.ui.presentation.recording.MainScreen
 import com.codr.movieshazam.ui.theme.MovieShazamTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,11 +45,7 @@ class MainActivity : ComponentActivity() {
             }
 
 //          requestPermissions()
-            ObserveAsEvent(
-                flow = EventController.emit,
-            ) { event ->
 
-            }
         }
 
     }
@@ -135,7 +129,7 @@ private fun MovieShazam() {
 
         when(currentRoute.collectAsState().value) {
             0 -> {
-                RecordingScreen(
+                MainScreen(
                     viewModel = hiltViewModel<RSViewModel>()
                 )
             }

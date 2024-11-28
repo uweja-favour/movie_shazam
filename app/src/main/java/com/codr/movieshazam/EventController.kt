@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 
 data class AnEvent(
     val name: String,
-    val fileName: String,
 )
 
 object EventController {
