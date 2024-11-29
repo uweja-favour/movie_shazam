@@ -29,7 +29,6 @@ fun BottomNavigationBar(
 
     val theCurrentRoute by currentRoute.collectAsState()
 
-
     NavigationBar(
         modifier = modifier,
         containerColor = AppBackGround
@@ -57,7 +56,7 @@ fun BottomNavigationBar(
                         Text(
                             text = item.title,
                             fontFamily = Poppins,
-                            color = TextColor
+                            color = Color.White
                         )
                     },
                 )

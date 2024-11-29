@@ -2,8 +2,28 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT"
+        tools:ignore="ProtectedPermissions" />
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <uses-permission android:name="android.permission.CAPTURE_AUDIO_HOTWORD"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.CAPTURE_VOICE_COMMUNICATION_OUTPUT"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="CAPTURE_MEDIA_OUTPUT" />
+    <uses-permission android:name="CAPTURE_TUNER_AUDIO_INPUT" />
+
+
+
+
+    
     <application
         android:name=".MyApplication"
         android:allowBackup="true"
@@ -26,6 +46,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".AudioRecordingService"
+            android:exported="false"
+            android:foregroundServiceType="microphone"
+            tools:ignore="ForegroundServicePermission" />
     </application>
-
 </manifest>

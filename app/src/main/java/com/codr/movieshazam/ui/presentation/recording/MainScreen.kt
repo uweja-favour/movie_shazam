@@ -51,6 +51,7 @@ import com.codr.movieshazam.ObserveAsEvent
 import com.codr.movieshazam.ui.theme.AppBackGround
 import com.codr.movieshazam.ui.theme.LARGE_PADDING
 import com.codr.movieshazam.ui.theme.MEDIUM_PADDING
+import com.codr.movieshazam.ui.theme.SMALL_PADDING
 import com.codr.movieshazam.ui.util.Constants.PLAYBACK_COMPLETE
 import com.codr.movieshazam.ui.util.Constants.RECORDING
 import com.codr.movieshazam.ui.util.Constants.SNACK_BAR_EVENT
@@ -97,14 +98,11 @@ fun MainScreen(
             RecordingScreen() {
                 if (isRecording) {
                     viewModel.stopRecording()
-                    Toast.makeText(context, "Recording stopped", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
 }
-
-
 
 
 @Composable
@@ -142,8 +140,7 @@ fun MainContent(
                         viewModel.toggleItemChecked(item, isChecked)
                     }
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider()
+                Spacer(modifier = Modifier.height(SMALL_PADDING.dp))
             }
 
             item {
@@ -201,7 +198,6 @@ fun ControlButtons(
                 onClick = {
                     if (canPerformAction) {
                         viewModel.startRecording(cacheDir,"$RECORDING ${getCurrentMillis()}.mp3") // Provide filename explicitly
-                        Toast.makeText(context, "Recording started", Toast.LENGTH_SHORT).show()
                     }
                 }
             )

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -48,6 +50,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.codr.movieshazam.data.Recording
+import com.codr.movieshazam.ui.theme.MEDIUM_PADDING
+import com.codr.movieshazam.ui.theme.MEDIUM_SMALL_PADDING
 import com.codr.movieshazam.ui.theme.SMALL_PADDING
 
 @Composable
@@ -59,76 +63,97 @@ fun CustomListItem(
     isChecked: Boolean,
     onCheckedChange: (Boolean, Recording) -> Unit
 ) {
-
+    val screenWidth = LocalConfiguration.current.screenWidthDp
     val noOfCheckedItems by viewModel.noOfCheckedItems.collectAsState()
     var scale by remember { mutableFloatStateOf(1f) }
 
-    Box(
+    Surface(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
             .scale(scale)
-            .padding(8.dp)
-            .background(MaterialTheme.colorScheme.surface)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        if (noOfCheckedItems >= 1) {
-                            onCheckedChange(!item.isChecked, item)
-                        } else {
-                            scale = 0.95f
-                            tryAwaitRelease()
-                            scale = 1f
-                        }
-                    },
-                    onLongPress = {
-                        onCheckedChange(!item.isChecked, item)
-                    }
-                )
-            }
+            .padding(horizontal = MEDIUM_SMALL_PADDING.dp),
+        color = MaterialTheme.colorScheme.inverseOnSurface, // color
+        shape = RoundedCornerShape(20)
     ) {
-        Row(
+        Box(
             modifier = Modifier
-                .padding(horizontal = SMALL_PADDING.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .padding(15.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onPress = {
+                            if (noOfCheckedItems >= 1) {
+                                onCheckedChange(!item.isChecked, item)
+                            } else {
+                                scale = 0.95f
+                                tryAwaitRelease()
+                                scale = 1f
+                            }
+                        },
+                        onLongPress = {
+                            onCheckedChange(!item.isChecked, item)
+                        }
+                    )
+                },
         ) {
 
-            Icon(
-                imageVector = Icons.Default.Mic,
-                contentDescription = "mic"
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-
-            Column(
-                modifier = Modifier.weight(1f)
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = SMALL_PADDING.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
-                )
-            }
 
-            if (noOfCheckedItems >= 1) {
-                CustomCheckbox(
-                    checked = isChecked,
-                    onCheckedChange = { newCheckedState ->
-                        Log.d("THE LOG", "boolean to pass is $newCheckedState")
-                        onCheckedChange(newCheckedState, item)
-                    }
-                )
-            } else {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "search for song"
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "mic"
                 )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray)
+                    )
+                }
+
+                if (noOfCheckedItems >= 1) {
+                    CustomCheckbox(
+                        checked = isChecked,
+                        screenWidth = screenWidth,
+                        onCheckedChange = { newCheckedState ->
+                            Log.d("THE LOG", "boolean to pass is $newCheckedState")
+                            onCheckedChange(newCheckedState, item)
+                        }
+                    )
+                } else {
+                    Surface(
+                        modifier = Modifier.size((screenWidth * .079).dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.onTertiary
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center, // Center the icon inside the surface
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "search for song",
+                                tint = Color.White,
+                                modifier = Modifier.size((screenWidth * .05).dp) // Adjust the icon size here
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -218,16 +243,34 @@ fun CustomListItem(
 //}
 
 @Composable
-fun CustomCheckbox(
+private fun CustomCheckbox(
     modifier: Modifier = Modifier,
+    screenWidth: Int,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
+
+    val transition = updateTransition(targetState = checked, label = "CheckboxTransition")
+
+    // Animating the checkmark color
+    val checkmarkColor by transition.animateColor(
+        transitionSpec = { tween(durationMillis = 300) },
+        label = "CheckmarkColor"
+    ) { state -> if (state) Color.Green else Color.LightGray }
+
+    // Animating the scale for the checkbox
+    val scale by transition.animateFloat(
+        transitionSpec = { spring(dampingRatio = Spring.DampingRatioLowBouncy) },
+        label = "CheckboxScale"
+    ) { state -> if (state) 1.2f else 1f }
+
+
     Box(
         modifier = modifier
-            .size(32.dp) // Adjust size as needed
+            .size((screenWidth * .056).dp)
+            .scale(scale)
             .clip(RoundedCornerShape(50))
-            .background(if (checked) Color.Green else Color.LightGray)
+            .background(checkmarkColor, RoundedCornerShape(20))
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onCheckedChange(!checked) }

@@ -1,20 +1,25 @@
 package com.codr.movieshazam.ui.presentation.recording
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
+import android.widget.Toast
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.codr.movieshazam.AnEvent
+import com.codr.movieshazam.AudioRecordingService
 import com.codr.movieshazam.EventController
 import com.codr.movieshazam.RsRepository
 import com.codr.movieshazam.SnackBarEvent
 import com.codr.movieshazam.data.Recording
 import com.codr.movieshazam.playback.AndroidAudioPlayer
-import com.codr.movieshazam.record.AndroidAudioRecorder
+import com.codr.movieshazam.ui.util.Constants.GET_POST_NOTIFICATIONS_EVENT
+import com.codr.movieshazam.ui.util.Constants.KEY_POST_NOTIFICATIONS_GRANTED
+import com.codr.movieshazam.ui.util.Constants.PREFS_NAME
 import com.codr.movieshazam.ui.util.Constants.SNACK_BAR_EVENT
-import com.codr.movieshazam.ui.util.getCurrentDate
-import com.codr.movieshazam.ui.util.getFormattedPeriod
-import com.codr.movieshazam.ui.util.getFormattedTime
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -29,15 +34,18 @@ class RSViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    private val recorder by lazy { AndroidAudioRecorder(context.applicationContext) }
+//    private val recorder by lazy { AndroidAudioRecorder(context.applicationContext) }
     private val player by lazy { AndroidAudioPlayer(context.applicationContext) }
+    private var permissionGranted by mutableStateOf(false)
 
-    val listOfRecordings = MutableStateFlow<List<Recording>>(emptyList())
-    val isPlaying = MutableStateFlow(false)
-    val isRecording = MutableStateFlow(false)
+    val listOfRecordings = MSHelperObject.listOfRecordings
+    val isPlaying = MSHelperObject.isPlaying
+    val isRecording = MSHelperObject.isRecording
     val noOfCheckedItems = MutableStateFlow(0)
 
-    init { retrieveAllRecordings() }
+    init {
+        retrieveAllRecordings()
+    }
 
     override fun onCleared() {
         super.onCleared()
@@ -45,88 +53,102 @@ class RSViewModel @Inject constructor(
     }
 
     private fun retrieveAllRecordings() = viewModelScope.launch(Dispatchers.IO) {
-        listOfRecordings.value = repository.retrieveRecordings()
+        MSHelperObject.listOfRecordings.value = repository.retrieveRecordings()
         Log.d("DATA LOG", "VIEWMODEL retrieved data is ${repository.retrieveRecordings()}")
     }
 
     private var audioFile: File? = null
 
+
+    // Start recording function
     fun startRecording(cacheDir: File, fileName: String) {
-        val file = File(cacheDir, fileName)
-        try {
-            recorder.start(file)
-            audioFile = file
-            isRecording.value = true
-        } catch (e: Exception) {
-            Log.e("Playback", "Error starting recording: ${e.message}", e)
-        }
+       if (!hasPermissionBeenGranted()) {
+           viewModelScope.launch(Dispatchers.Main.immediate) {
+               EventController.sendEvent(
+                   event = AnEvent(
+                       type = GET_POST_NOTIFICATIONS_EVENT
+                   )
+               )
+           }
+           Toast.makeText(
+               context,
+               "Please allow this permission",
+               Toast.LENGTH_SHORT
+           ).show()
+           return
+       }
+       val intent = Intent(context, AudioRecordingService::class.java).apply {
+           putExtra("START_RECORDING", true)
+       }
+       context.startForegroundService(intent) // Starts the foreground service
+       Toast.makeText(context, "Recording started", Toast.LENGTH_SHORT).show()
+
     }
 
+
+    private fun hasPermissionBeenGranted(): Boolean {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(KEY_POST_NOTIFICATIONS_GRANTED, false)
+    }
+
+
+    // Stop recording function
     fun stopRecording() {
-        try {
-            recorder.stop()
-            isRecording.value = false
-            audioFile?.let {
-                val newRecording = Recording(
-                    fileName = it.name,
-                    filePath = it.absolutePath,
-                    dateAdded = "${getCurrentDate()} ${getFormattedTime()} ${getFormattedPeriod()}",
-                )
-                listOfRecordings.value += newRecording
-                saveRecording()
-            }
-        } catch (e: Exception) {
-            Log.e("Playback", "Error stopping recording: ${e.message}", e)
+        val intent = Intent(context, AudioRecordingService::class.java).apply {
+            putExtra("SAVE_RECORDING", true)
         }
+        context.startForegroundService(intent) // Stops the foreground service
+        MSHelperObject.isRecording.value = false
+        Toast.makeText(context, "Recording stopped", Toast.LENGTH_SHORT).show()
     }
 
+    // Play the recorded audio file
     fun play() {
         if (audioFile?.exists() == true && (audioFile?.length() ?: 0) > 0) {
             player.playFile(audioFile!!)
-            isPlaying.value = true
+            MSHelperObject.isPlaying.value = true
         } else {
             Log.e("Playback", "File does not exist or is empty.")
         }
     }
 
+    // Stop playing the audio file
     fun stopPlaying() {
         if (isPlaying.value) {
             player.stop()
-            isPlaying.value = false
+            MSHelperObject.isPlaying.value = false
         }
     }
 
+    // Pause playing the audio file
     fun pausePlaying() {
         if (isPlaying.value) {
             player.pause()
-            isPlaying.value = false
+            MSHelperObject.isPlaying.value = false
         }
-    }
-
-    private fun saveRecording() = viewModelScope.launch(Dispatchers.IO) {
-        repository.saveRecordings(listOfRecordings.value)
     }
 
     private fun clear() {
         audioFile = null
         player.stop()
-        recorder.stop()
     }
 
+    // Toggle play back completed event
     fun onTogglePlayBackCompleted() {
         isPlaying.value = false
     }
 
+    // Handle back press from the recording screen (stop recording)
     fun onBackPressFromRecordingScreen() {
         stopRecording()
     }
 
-
     /** HANDLE CHECKBOX FUNCTIONALITIES **/
 
+    // Toggle checked state of individual items
     fun toggleItemChecked(item: Recording, isChecked: Boolean) {
         Log.d("THE LOG", "boolean value is $isChecked")
-        listOfRecordings.value = listOfRecordings.value.map {
+        MSHelperObject.listOfRecordings.value = listOfRecordings.value.map {
             if (it == item) {
                 val editedItem = Recording(
                     filePath = it.filePath,
@@ -142,8 +164,9 @@ class RSViewModel @Inject constructor(
         Log.d("THE LOG", "no of checked items is now ${noOfCheckedItems.value}")
     }
 
+    // Toggle checked state for all items
     fun toggleAllItemsAsChecked(isChecked: Boolean) {
-        listOfRecordings.value = listOfRecordings.value.map {
+        MSHelperObject.listOfRecordings.value = listOfRecordings.value.map {
             val editedItem = Recording(
                 filePath = it.filePath,
                 fileName = it.fileName,
@@ -156,21 +179,23 @@ class RSViewModel @Inject constructor(
         computeNoOfCheckedItems()
     }
 
+    // Compute number of checked items
     private fun computeNoOfCheckedItems() {
         noOfCheckedItems.value = listOfRecordings.value.count { it.isChecked }
     }
 
+    // Delete checked items
     fun deleteCheckedItems() {
         val formerState = listOfRecordings.value
-        listOfRecordings.value = listOfRecordings.value.filter {
+        MSHelperObject.listOfRecordings.value = listOfRecordings.value.filter {
             !it.isChecked
         }
         computeNoOfCheckedItems()
         showSnackBar(formerState)
     }
 
-    private fun showSnackBar(formerState: List<Recording>)
-     = viewModelScope.launch(Dispatchers.Main) {
+    // Show SnackBar with the undo option
+    private fun showSnackBar(formerState: List<Recording>) = viewModelScope.launch(Dispatchers.Main) {
         EventController.sendEvent(
             AnEvent(
                 type = SNACK_BAR_EVENT,
@@ -186,4 +211,8 @@ class RSViewModel @Inject constructor(
             )
         )
     }
+
+
+
+    /** REQUEST PERMISSION FOR POST NOTIFICATION **/
 }

@@ -12,7 +12,7 @@ import com.codr.movieshazam.ui.presentation.recording.DropDownItem
 
 object Constants {
 
-    val screenRoutes = listOf(
+    private val screenRoutes = listOf(
         "record_screen",
         "history_screen"
     )
@@ -50,4 +50,9 @@ object Constants {
     const val PLAYBACK_COMPLETE = "playback_completed"
     const val RECORDING = "Recording"
     const val SNACK_BAR_EVENT = "snack_bar_event"
+    const val BASE_URL = ""
+    const val PREFS_NAME = "app_prefs"
+    const val KEY_POST_NOTIFICATIONS_GRANTED = "post_notifications_granted"
+    const val GET_POST_NOTIFICATIONS_EVENT = "get_post_notifications_event"
+    const val NOTIFICATION_CHANNEL_ID = "AudioRecordingChannel"
 }

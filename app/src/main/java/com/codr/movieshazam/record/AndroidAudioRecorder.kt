@@ -3,7 +3,6 @@ package com.codr.movieshazam.record
 import android.content.Context
 import android.media.MediaRecorder
 import android.os.Build
-import android.provider.MediaStore.Audio.Media
 import java.io.File
 import java.io.FileOutputStream
 
@@ -12,6 +11,7 @@ class AndroidAudioRecorder(
 ): AudioRecorder {
 
     private var recorder: MediaRecorder? = null
+    private var isRecording = false
 
     private fun createRecorder(): MediaRecorder {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -20,6 +20,9 @@ class AndroidAudioRecorder(
     }
 
     override fun start(outputFile: File) {
+        if (isRecording) {
+            stop()
+        }
         createRecorder().apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4) // change ths to get a better audio recording
@@ -34,7 +37,7 @@ class AndroidAudioRecorder(
 
             prepare()
             start()
-
+            isRecording = true
             recorder = this
         }
     }
@@ -42,6 +45,7 @@ class AndroidAudioRecorder(
     override fun stop() {
         recorder?.stop()
         recorder?.reset()
+        isRecording = false
         recorder = null
     }
 }
