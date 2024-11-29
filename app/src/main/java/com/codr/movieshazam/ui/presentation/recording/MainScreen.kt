@@ -150,7 +150,7 @@ fun MainContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height((screenHeight / 3.2).dp)
+                        .height((screenHeight / 4.2).dp)
                 )
             }
         }

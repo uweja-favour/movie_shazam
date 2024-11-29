@@ -1,6 +1,7 @@
 package com.codr.movieshazam
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -35,6 +36,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.codr.movieshazam.ui.bottom_navbar.BottomNavigationBar
 import com.codr.movieshazam.ui.presentation.recording.AppBar
@@ -58,6 +60,7 @@ private const val REQUEST_CODE_POST_NOTIFICATIONS = 1001
 private var initialPage = 0
 private const val PREFS_NAME = "app_prefs"
 private const val KEY_POST_NOTIFICATIONS_GRANTED = "post_notifications_granted"
+private const val REQUEST_RECORD_AUDIO_PERMISSION = 200
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -76,8 +79,13 @@ class MainActivity : ComponentActivity() {
 
             }
 //          requestPermissions()
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO_PERMISSION)
+            }
         }
     }
+
+
 
     // PERMISSIONS HANDLING
 //    private fun isPermissionGranted(permission: String): Boolean {
@@ -112,15 +120,7 @@ class MainActivity : ComponentActivity() {
 //            }
 //        }
 //
-////      The method canScheduleExactAlarms() is only available starting from API 31 (Android 12).
-////      The check for Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ensures the method is only called on compatible devices.
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-//            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-//            if (!alarmManager.canScheduleExactAlarms()) {
-//                val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-//                startActivity(intent)
-//            }
-//        }
+//
 //    }
 //
 //    @Deprecated("Deprecated in Java")

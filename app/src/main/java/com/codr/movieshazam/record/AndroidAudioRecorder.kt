@@ -22,14 +22,14 @@ class AndroidAudioRecorder(
     override fun start(outputFile: File) {
         createRecorder().apply {
             setAudioSource(MediaRecorder.AudioSource.MIC)
-//            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4) // change ths to get a better audio recording
-//            setAudioEncoder(MediaRecorder.AudioEncoder.AAC) // change ths to get a better audio recording
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4) // change ths to get a better audio recording
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC) // change ths to get a better audio recording
 
             // For higher quality, use AMR or PCM formats
-            setOutputFormat(MediaRecorder.OutputFormat.AMR_NB)  // You can also try PCM for uncompressed audio
+//            setOutputFormat(MediaRecorder.OutputFormat.AMR_NB)  // You can also try PCM for uncompressed audio
 
             // Use HE_AAC for better compression and quality
-            setAudioEncoder(MediaRecorder.AudioEncoder.HE_AAC)  // AAC is fine too, but HE_AAC might give better results
+//            setAudioEncoder(MediaRecorder.AudioEncoder.HE_AAC)  // AAC is fine too, but HE_AAC might give better results
             setOutputFile(FileOutputStream(outputFile).fd)
 
             prepare()

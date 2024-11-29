@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.codr.movieshazam.data.Recording
+import com.codr.movieshazam.ui.theme.SMALL_PADDING
 
 @Composable
 fun CustomListItem(
@@ -87,7 +88,8 @@ fun CustomListItem(
             }
     ) {
         Row(
-            modifier = Modifier,
+            modifier = Modifier
+                .padding(horizontal = SMALL_PADDING.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
