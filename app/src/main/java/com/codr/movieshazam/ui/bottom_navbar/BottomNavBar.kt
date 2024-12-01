@@ -1,21 +1,17 @@
 package com.codr.movieshazam.ui.bottom_navbar
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
-import androidx.compose.material.primarySurface
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.codr.movieshazam.data.NavigationItem
-import com.codr.movieshazam.ui.theme.AppBackGround
-import com.codr.movieshazam.ui.theme.TextColor
 import com.codr.movieshazam.ui.util.Constants.navigationItems
 import com.codr.movieshazam.ui.util.font.Poppins
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,13 +27,9 @@ fun BottomNavigationBar(
 
     NavigationBar(
         modifier = modifier,
-        containerColor = AppBackGround
+        containerColor = MaterialTheme.colorScheme.onSecondary,
     ) {
-        Row(
-            modifier = Modifier.background(
-                MaterialTheme.colors.onSurface
-            )
-        ) {
+        Row {
             navigationItems.forEach { item ->
                 val isSelected = theCurrentRoute == item.route
 
@@ -67,7 +59,7 @@ fun BottomNavigationBar(
 
 
 @Composable
-fun HandleNavItemIcon(
+private fun HandleNavItemIcon(
     item: NavigationItem,
     isSelected: Boolean
 ) {

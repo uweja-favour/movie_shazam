@@ -1,8 +1,8 @@
 package com.codr.movieshazam.di
 
 import android.content.Context
-import com.codr.movieshazam.RsRepository
-import com.codr.movieshazam.RsRepositoryImpl
+import com.codr.movieshazam.RsDataSource
+import com.codr.movieshazam.RsDataSourceImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,7 +18,7 @@ object RepositoryModule {
     @Singleton
     fun provideRsRepository(
         @ApplicationContext context: Context
-    ) : RsRepository {
-        return RsRepositoryImpl(context)
+    ) : RsDataSource {
+        return RsDataSourceImpl(context)
     }
 }

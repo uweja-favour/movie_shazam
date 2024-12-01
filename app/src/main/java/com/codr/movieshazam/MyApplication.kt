@@ -14,7 +14,7 @@ class MyApplication: Application() {
         val lifecycleObserver = AppLifecycleObserver(
             context = this,
             viewModel = RSViewModel(
-            repository = RsRepositoryImpl(this),
+            rsDataSource = RsDataSourceImpl(this),
             context = this
         ))
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)

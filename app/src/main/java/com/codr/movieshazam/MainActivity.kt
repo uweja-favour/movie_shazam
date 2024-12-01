@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -16,6 +17,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codr.movieshazam.ui.bottom_navbar.BottomNavigationBar
 import com.codr.movieshazam.ui.presentation.recording.AppBar
@@ -66,6 +70,7 @@ import com.codr.movieshazam.ui.util.Constants.recordAndSave
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
@@ -77,46 +82,53 @@ private const val REQUEST_RECORD_AUDIO_PERMISSION = 200
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    private lateinit var permissionHelper: PermissionHelper
+    private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
+
     @SuppressLint("BatteryLife")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Ensure audio permission is requested
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), REQUEST_RECORD_AUDIO_PERMISSION)
+        // Register the launcher in the CREATED phase
+        notificationPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+            if (isGranted) {
+                Log.d("THE LOG", "Notification permission granted.")
+                setPermissionGranted(true)
+            } else {
+                Log.d("THE LOG", "Notification permission denied.")
+                showSettingsToast()
+            }
         }
 
-        // Request notification permission if necessary
-        requestPermissions()
+        // Initialize PermissionHelper with the launcher
+        permissionHelper = PermissionHelper(this, notificationPermissionLauncher)
+
+        lifecycleScope.launch {
+            requestAudioPermission()
+            delay(1500)
+            permissionHelper.requestNotificationPermission()
+        }
 
         setContent {
             MovieShazamTheme {
                 MovieShazam()
-
                 ObserveAsEvent(
                     flow = EventController.emit
                 ) { event ->
-
-                    when(event.type) {
+                    when (event.type) {
                         GET_POST_NOTIFICATIONS_EVENT -> {
-                            requestPermissions()
+                            permissionHelper.requestNotificationPermission()
                         }
                     }
                 }
             }
         }
 
-        // Ensure your app isn't being optimized for battery usage
-        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-            data = Uri.parse("package:$packageName")
-        }
-        startActivity(intent)
-    }
-
-
-    private fun isPermissionGranted(permission: String): Boolean {
-        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+        // Ensure the app is not battery-optimized
+        promptIgnoreBatteryOptimizations()
     }
 
     private fun setPermissionGranted(granted: Boolean) {
@@ -124,73 +136,50 @@ class MainActivity : ComponentActivity() {
         prefs.edit().putBoolean(KEY_POST_NOTIFICATIONS_GRANTED, granted).apply()
     }
 
-    private fun hasPermissionBeenGranted(): Boolean {
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getBoolean(KEY_POST_NOTIFICATIONS_GRANTED, false)
-    }
-
-    private fun requestPermissions() {
-        Log.d("THE LOG", "Request Permissions got called")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (!hasPermissionBeenGranted()) {
-                Log.d("THE LOG", "Checking POST_NOTIFICATIONS permission.")
-                if (!isPermissionGranted(Manifest.permission.POST_NOTIFICATIONS)) {
-                    Log.d("THE LOG", "Requesting POST_NOTIFICATIONS permission.")
-                    ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                        REQUEST_CODE_POST_NOTIFICATIONS
-                    )
-                } else {
-                    Log.d("THE LOG", "No need to request POST_NOTIFICATIONS permission.")
-                    setPermissionGranted(true)
-                }
-            }
-        } else {
-            Log.d("THE LOG", "POST_NOTIFICATIONS permission not required on this Android version.")
+    @SuppressLint("BatteryLife")
+    private fun promptIgnoreBatteryOptimizations() {
+        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+            data = Uri.parse("package:$packageName")
         }
+        startActivity(intent)
     }
 
+    private fun showSettingsToast() {
+        Toast.makeText(
+            this,
+            "Please enable notifications from app settings.",
+            Toast.LENGTH_LONG
+        ).show()
+    }
 
-    @Deprecated("Deprecated in Java")
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            REQUEST_CODE_POST_NOTIFICATIONS -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Log.d("THE LOG", "Permission granted to post notifications.")
-                    setPermissionGranted(true)
+    private suspend fun requestAudioPermission() = coroutineScope {
+        if (!permissionHelper.isPermissionGranted(Manifest.permission.RECORD_AUDIO)) {
+            val requestPermissionLauncher = registerForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { isGranted ->
+                if (isGranted) {
+                    Log.d("THE LOG", "Audio recording permission granted.")
                 } else {
-                    Log.d("THE LOG", "Permission denied to post notifications.")
-                    setPermissionGranted(false)
-                    // Optional: Guide user to settings if permanently denied
-                    if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.POST_NOTIFICATIONS)) {
-                        Toast.makeText(
-                            this,
-                            "Please enable notifications from app settings.",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
+                    Log.d("THE LOG", "Audio recording permission denied.")
                 }
             }
-            REQUEST_RECORD_AUDIO_PERMISSION -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Log.d("THE LOG", "Permission granted for audio recording.")
-                } else {
-                    Log.d("THE LOG", "Permission denied for audio recording.")
-                }
-            }
+            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
 
     override fun onPause() {
         super.onPause()
+       cancelForeGroundActivity()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cancelForeGroundActivity()
+    }
+
+    private fun cancelForeGroundActivity() {
         if (!MSHelperObject.isRecording.value && !MSHelperObject.isPlaying.value) {
-            // Stop the recording service if it's running
+            // Stop the recording service if it's not running
             Log.d("THE LOG", "Removing service, destroying notification channel")
             val stopServiceIntent = Intent(this, AudioRecordingService::class.java)
             stopService(stopServiceIntent)

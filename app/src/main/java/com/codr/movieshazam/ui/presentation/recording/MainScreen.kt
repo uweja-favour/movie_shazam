@@ -1,11 +1,8 @@
 package com.codr.movieshazam.ui.presentation.recording
 
 import android.content.Context
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,24 +16,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,18 +37,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.codr.movieshazam.EventController
-import com.codr.movieshazam.ObserveAsEvent
 import com.codr.movieshazam.ui.theme.AppBackGround
-import com.codr.movieshazam.ui.theme.LARGE_PADDING
-import com.codr.movieshazam.ui.theme.MEDIUM_PADDING
 import com.codr.movieshazam.ui.theme.SMALL_PADDING
-import com.codr.movieshazam.ui.util.Constants.PLAYBACK_COMPLETE
 import com.codr.movieshazam.ui.util.Constants.RECORDING
-import com.codr.movieshazam.ui.util.Constants.SNACK_BAR_EVENT
 import com.codr.movieshazam.ui.util.getCurrentMillis
-import kotlinx.coroutines.launch
-
 
 @Composable
 fun MainScreen(
@@ -67,7 +50,6 @@ fun MainScreen(
 
     val noOfCheckedItems by viewModel.noOfCheckedItems.collectAsState()
     val context = LocalContext.current
-
     val isRecording by viewModel.isRecording.collectAsState()
 
     BackHandler(enabled = isRecording) {
@@ -163,7 +145,7 @@ fun MainContent(
 
 
 @Composable
-fun ControlButtons(
+private fun ControlButtons(
     modifier: Modifier = Modifier,
     paddingValues: PaddingValues,
     viewModel: RSViewModel
@@ -218,7 +200,7 @@ fun ControlButtons(
 
 
 @Composable
-fun CircularButton(
+private fun CircularButton(
     icon: ImageVector,
     contentDescription: String?,
     color: Color,

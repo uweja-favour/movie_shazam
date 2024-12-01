@@ -34,7 +34,7 @@ class AudioRecordingService : Service() {
     private var isRecording = false // Track if recording is in progress
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private val recorder by lazy { AndroidAudioRecorder(this) }
-    private val repository = RsRepositoryImpl(this)
+    private val repository = RsDataSourceImpl(this)
     private lateinit var notificationManager: NotificationManager
 
     override fun onCreate() {
@@ -72,7 +72,7 @@ class AudioRecordingService : Service() {
 
     private fun startRecordingWithTimer(durationMillis: Long) {
         try {
-            val file = File(cacheDir, "$RECORDING ${getCurrentMillis()}.mp3")
+            val file = File(cacheDir, "$RECORDING ${getCurrentMillis()}.m4a")
             recorder.start(file)
             outputFile = file
             isRecording = true

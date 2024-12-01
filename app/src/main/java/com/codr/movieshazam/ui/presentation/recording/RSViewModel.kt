@@ -5,6 +5,7 @@ import android.content.Intent
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -12,7 +13,7 @@ import androidx.lifecycle.viewModelScope
 import com.codr.movieshazam.AnEvent
 import com.codr.movieshazam.AudioRecordingService
 import com.codr.movieshazam.EventController
-import com.codr.movieshazam.RsRepository
+import com.codr.movieshazam.RsDataSource
 import com.codr.movieshazam.SnackBarEvent
 import com.codr.movieshazam.data.Recording
 import com.codr.movieshazam.playback.AndroidAudioPlayer
@@ -30,18 +31,19 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RSViewModel @Inject constructor(
-    private val repository: RsRepository,
+    private val rsDataSource: RsDataSource,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-//    private val recorder by lazy { AndroidAudioRecorder(context.applicationContext) }
+//  private val recorder by lazy { AndroidAudioRecorder(context.applicationContext) }
     private val player by lazy { AndroidAudioPlayer(context.applicationContext) }
-    private var permissionGranted by mutableStateOf(false)
 
     val listOfRecordings = MSHelperObject.listOfRecordings
     val isPlaying = MSHelperObject.isPlaying
     val isRecording = MSHelperObject.isRecording
     val noOfCheckedItems = MutableStateFlow(0)
+
+    private var audioFile: File? = null
 
     init {
         retrieveAllRecordings()
@@ -53,28 +55,20 @@ class RSViewModel @Inject constructor(
     }
 
     private fun retrieveAllRecordings() = viewModelScope.launch(Dispatchers.IO) {
-        MSHelperObject.listOfRecordings.value = repository.retrieveRecordings()
-        Log.d("DATA LOG", "VIEWMODEL retrieved data is ${repository.retrieveRecordings()}")
+        MSHelperObject.listOfRecordings.value = rsDataSource.retrieveRecordings()
+        Log.d("DATA LOG", "VIEWMODEL retrieved data is ${rsDataSource.retrieveRecordings()}")
     }
-
-    private var audioFile: File? = null
-
 
     // Start recording function
     fun startRecording(cacheDir: File, fileName: String) {
        if (!hasPermissionBeenGranted()) {
-           viewModelScope.launch(Dispatchers.Main.immediate) {
+           viewModelScope.launch {
                EventController.sendEvent(
                    event = AnEvent(
                        type = GET_POST_NOTIFICATIONS_EVENT
                    )
                )
            }
-           Toast.makeText(
-               context,
-               "Please allow this permission",
-               Toast.LENGTH_SHORT
-           ).show()
            return
        }
        val intent = Intent(context, AudioRecordingService::class.java).apply {
@@ -82,9 +76,7 @@ class RSViewModel @Inject constructor(
        }
        context.startForegroundService(intent) // Starts the foreground service
        Toast.makeText(context, "Recording started", Toast.LENGTH_SHORT).show()
-
     }
-
 
     private fun hasPermissionBeenGranted(): Boolean {
         val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -211,8 +203,4 @@ class RSViewModel @Inject constructor(
             )
         )
     }
-
-
-
-    /** REQUEST PERMISSION FOR POST NOTIFICATION **/
 }

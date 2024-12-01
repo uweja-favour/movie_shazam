@@ -71,7 +71,8 @@ fun CustomListItem(
         modifier = Modifier
             .scale(scale)
             .padding(horizontal = MEDIUM_SMALL_PADDING.dp),
-        color = MaterialTheme.colorScheme.inverseOnSurface, // color
+//        color = MaterialTheme.colorScheme.inverseOnSurface, // color
+        color = MaterialTheme.colorScheme.onSecondary,
         shape = RoundedCornerShape(20)
     ) {
         Box(
@@ -137,9 +138,9 @@ fun CustomListItem(
                     )
                 } else {
                     Surface(
-                        modifier = Modifier.size((screenWidth * .079).dp),
+                        modifier = Modifier.size((screenWidth * .1).dp),
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.onTertiary
+                        color = MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Box(
                             contentAlignment = Alignment.Center, // Center the icon inside the surface
@@ -256,7 +257,7 @@ private fun CustomCheckbox(
     val checkmarkColor by transition.animateColor(
         transitionSpec = { tween(durationMillis = 300) },
         label = "CheckmarkColor"
-    ) { state -> if (state) Color.Green else Color.LightGray }
+    ) { state -> if (state) Color.Blue.copy(1f) else Color.LightGray }
 
     // Animating the scale for the checkbox
     val scale by transition.animateFloat(
@@ -269,7 +270,6 @@ private fun CustomCheckbox(
         modifier = modifier
             .size((screenWidth * .056).dp)
             .scale(scale)
-            .clip(RoundedCornerShape(50))
             .background(checkmarkColor, RoundedCornerShape(20))
             .pointerInput(Unit) {
                 detectTapGestures(
