@@ -2,12 +2,9 @@ package com.codr.movieshazam
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -19,25 +16,21 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,22 +39,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codr.movieshazam.ui.bottom_navbar.BottomNavigationBar
 import com.codr.movieshazam.ui.presentation.recording.AppBar
 import com.codr.movieshazam.ui.presentation.recording.DropDownItem
 import com.codr.movieshazam.ui.presentation.recording.MSHelperObject
 import com.codr.movieshazam.ui.presentation.recording.MainScreen
 import com.codr.movieshazam.ui.presentation.recording.RSViewModel
-import com.codr.movieshazam.ui.theme.AppBackGround
 import com.codr.movieshazam.ui.theme.MovieShazamTheme
-import com.codr.movieshazam.ui.util.Constants.GET_POST_NOTIFICATIONS_EVENT
+import com.codr.movieshazam.ui.util.Constants
 import com.codr.movieshazam.ui.util.Constants.KEY_POST_NOTIFICATIONS_GRANTED
-import com.codr.movieshazam.ui.util.Constants.NOTIFICATION_CHANNEL_ID
 import com.codr.movieshazam.ui.util.Constants.PLAYBACK_COMPLETE
 import com.codr.movieshazam.ui.util.Constants.PREFS_NAME
 import com.codr.movieshazam.ui.util.Constants.SNACK_BAR_EVENT
@@ -70,14 +58,11 @@ import com.codr.movieshazam.ui.util.Constants.recordAndSave
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 
-private const val REQUEST_CODE_POST_NOTIFICATIONS = 1001
 private var initialPage = 0
-private const val REQUEST_RECORD_AUDIO_PERMISSION = 200
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -85,6 +70,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var permissionHelper: PermissionHelper
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @SuppressLint("BatteryLife")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,22 +94,11 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch {
             requestAudioPermission()
-            delay(1500)
-            permissionHelper.requestNotificationPermission()
         }
 
         setContent {
             MovieShazamTheme {
                 MovieShazam()
-                ObserveAsEvent(
-                    flow = EventController.emit
-                ) { event ->
-                    when (event.type) {
-                        GET_POST_NOTIFICATIONS_EVENT -> {
-                            permissionHelper.requestNotificationPermission()
-                        }
-                    }
-                }
             }
         }
 
@@ -187,13 +162,14 @@ class MainActivity : ComponentActivity() {
             // Cancel all notifications
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.cancelAll()
-            notificationManager.deleteNotificationChannel(NOTIFICATION_CHANNEL_ID)
+            notificationManager.deleteNotificationChannel(Constants.CHANNEL_ID)
         }
     }
 }
 
 
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MovieShazam() {
@@ -226,10 +202,12 @@ private fun MovieShazam() {
         flow = EventController.emit,
     ) { event ->
         when (event.type) {
+
             PLAYBACK_COMPLETE -> {
                 Log.d("THE LOG", "playback completed event received")
                 mainScreenVM.onTogglePlayBackCompleted()
             }
+
             SNACK_BAR_EVENT -> {
                 coroutineScope.launch {
                     snackBarHostState.currentSnackbarData?.dismiss()
@@ -294,8 +272,7 @@ private fun MovieShazam() {
                 when(pageIndex) {
                     0 -> {
                         MainScreen(
-                            viewModel = mainScreenVM,
-                            paddingValues = paddingValues
+                            viewModel = mainScreenVM
                         )
                     }
                     1 -> {

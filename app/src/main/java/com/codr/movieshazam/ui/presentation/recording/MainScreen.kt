@@ -1,7 +1,8 @@
 package com.codr.movieshazam.ui.presentation.recording
 
-import android.content.Context
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,41 +27,34 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.codr.movieshazam.data.Recording
 import com.codr.movieshazam.ui.theme.AppBackGround
 import com.codr.movieshazam.ui.theme.SMALL_PADDING
-import com.codr.movieshazam.ui.util.Constants.RECORDING
-import com.codr.movieshazam.ui.util.getCurrentMillis
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun MainScreen(
-    viewModel: RSViewModel,
-    paddingValues: PaddingValues
+    viewModel: RSViewModel
 ) {
 
     val noOfCheckedItems by viewModel.noOfCheckedItems.collectAsState()
-    val context = LocalContext.current
+    val listOfRecordings by viewModel.listOfRecordings.collectAsState()
+
     val isRecording by viewModel.isRecording.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
 
-    BackHandler(enabled = isRecording) {
-        if (isRecording) {
-            viewModel.onBackPressFromRecordingScreen()
-        }
-    }
-
-    BackHandler(enabled = noOfCheckedItems >= 1) {
-        viewModel.toggleAllItemsAsChecked(false)
-    }
+    BackHandler(enabled = isRecording, onBack = viewModel::stopRecording)
+    BackHandler(enabled = noOfCheckedItems >= 1, onBack = viewModel::toggleAllItemsAsChecked)
 
     Surface(
         modifier = Modifier
@@ -70,38 +64,36 @@ fun MainScreen(
 
         AnimatedVisibility(visible = !isRecording) {
             MainContent(
-                viewModel = viewModel,
-                paddingValues = paddingValues,
-                context = context
+                listOfRecordings = listOfRecordings,
+                noOfCheckedItems = noOfCheckedItems,
+                isRecording = isRecording,
+                isPlaying = isPlaying,
+                onCheckedChanged = { isChecked, item -> viewModel.toggleItemChecked(isChecked, item) },
+                onRecord = viewModel::startRecording,
+                onDelete = viewModel::deleteCheckedItems
             )
         }
 
         AnimatedVisibility(visible = isRecording) {
-            RecordingScreen() {
-                if (isRecording) {
-                    viewModel.stopRecording()
-                }
-            }
+            RecordingScreen(onStopRecording = viewModel::stopRecording)
         }
     }
 }
 
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
-fun MainContent(
-    viewModel: RSViewModel,
-    paddingValues: PaddingValues,
-    context: Context
+private fun MainContent(
+    listOfRecordings: List<Recording>,
+    noOfCheckedItems: Int,
+    isRecording: Boolean,
+    isPlaying: Boolean,
+    onCheckedChanged: (Boolean, Recording) -> Unit,
+    onRecord: () -> Unit,
+    onDelete: () -> Unit,
 ) {
-    val listOfRecordings by viewModel.listOfRecordings.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val isRecording by viewModel.isRecording.collectAsState()
     val canPerformAction = !isPlaying && !isRecording
     val screenHeight = LocalConfiguration.current.screenHeightDp
-
-    var isSelectable by remember {
-        mutableStateOf(false)
-    }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -113,13 +105,13 @@ fun MainContent(
             items(listOfRecordings, key = { it.id }) { recording -> // Use a unique `id` for the key
                 Spacer(modifier = Modifier.height(8.dp))
                 CustomListItem(
-                    viewModel = viewModel,
                     item = recording,
+                    noOfCheckedItems = noOfCheckedItems,
                     title = recording.fileName,
                     subtitle = recording.dateAdded,
                     isChecked = recording.isChecked,
                     onCheckedChange = { isChecked, item ->
-                        viewModel.toggleItemChecked(item, isChecked)
+                        onCheckedChanged(isChecked, item)
                     }
                 )
                 Spacer(modifier = Modifier.height(SMALL_PADDING.dp))
@@ -136,33 +128,40 @@ fun MainContent(
 
         ControlButtons(
             modifier = Modifier.align(Alignment.BottomCenter),
-            paddingValues = paddingValues,
-            viewModel = viewModel
+            noOfCheckedItems = noOfCheckedItems,
+            isRecording = isRecording,
+            isPlaying = isPlaying,
+            onRecord = onRecord,
+            onDelete = onDelete,
         )
     }
 }
 
 
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 private fun ControlButtons(
     modifier: Modifier = Modifier,
-    paddingValues: PaddingValues,
-    viewModel: RSViewModel
+    noOfCheckedItems: Int,
+    isRecording: Boolean,
+    isPlaying: Boolean,
+    onRecord: () -> Unit,
+    onDelete: () -> Unit,
 ) {
-    // UI state tracking
-    val isRecording by viewModel.isRecording.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-
     // Derived state to manage button availability
     val canPerformAction = !isRecording && !isPlaying
 
     // Screen and context utilities
     val screenHeight = LocalConfiguration.current.screenHeightDp
-    val context = LocalContext.current
-    val cacheDir = context.cacheDir
+    val postNotificationPermissionState = rememberPermissionState(
+        permission = android.Manifest.permission.POST_NOTIFICATIONS
+    )
 
-    val noOfCheckedItems by viewModel.noOfCheckedItems.collectAsState()
+    val audioRecordingPermissionState = rememberPermissionState(
+        permission = android.Manifest.permission.RECORD_AUDIO
+    )
 
     Row(
         modifier = modifier
@@ -178,8 +177,11 @@ private fun ControlButtons(
                 contentDescription = "Start Recording",
                 color = Color.Red,
                 onClick = {
-                    if (canPerformAction) {
-                        viewModel.startRecording(cacheDir,"$RECORDING ${getCurrentMillis()}.mp3") // Provide filename explicitly
+                    when {
+                        !canPerformAction -> return@CircularButton
+                        postNotificationPermissionState.status.isGranted.not() -> postNotificationPermissionState.launchPermissionRequest()
+                        audioRecordingPermissionState.status.isGranted -> onRecord()
+                        else -> audioRecordingPermissionState.launchPermissionRequest()
                     }
                 }
             )
@@ -190,7 +192,7 @@ private fun ControlButtons(
                 color = Color.Red,
                 increaseIconSize = true,
                 onClick = {
-                    viewModel.deleteCheckedItems()
+                    onDelete()
                 }
             )
         }

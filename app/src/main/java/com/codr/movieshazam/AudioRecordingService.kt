@@ -12,246 +12,187 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.codr.movieshazam.data.Recording
+import com.codr.movieshazam.data.remote.ApiHelper
 import com.codr.movieshazam.record.AndroidAudioRecorder
 import com.codr.movieshazam.ui.presentation.recording.MSHelperObject
-import com.codr.movieshazam.ui.presentation.recording.MSHelperObject.listOfRecordings
-import com.codr.movieshazam.ui.util.Constants.NOTIFICATION_CHANNEL_ID
+import com.codr.movieshazam.ui.util.Constants
 import com.codr.movieshazam.ui.util.getCurrentDate
 import com.codr.movieshazam.ui.util.getCurrentMillis
 import com.codr.movieshazam.ui.util.getFormattedPeriod
 import com.codr.movieshazam.ui.util.getFormattedTime
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.*
 import java.io.File
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class AudioRecordingService : Service() {
 
     private var outputFile: File? = null
-    private var isRecording = false // Track if recording is in progress
+    private var isRecording = false
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
+    private val dataSource = RsDataSourceImpl(this)
+
+    @Inject
+    lateinit var apiHelper: ApiHelper
+
     private val recorder by lazy { AndroidAudioRecorder(this) }
-    private val repository = RsDataSourceImpl(this)
     private lateinit var notificationManager: NotificationManager
 
     override fun onCreate() {
         super.onCreate()
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val startRecording = intent?.getBooleanExtra("START_RECORDING", false) ?: false
-        val saveRecording = intent?.getBooleanExtra("SAVE_RECORDING", false) ?: false
+        val startRecording = intent?.getBooleanExtra(Constants.START_RECORDING, false) ?: false
+        val saveRecording = intent?.getBooleanExtra(Constants.SAVE_RECORDING, false) ?: false
 
-        val notification = createNotification()
-        try {
-            startForeground(2, notification)
-            Log.d("THE LOG", "startForeground called, service in foreground.")
-        } catch (e: Exception) {
-            Log.e("THE LOG", "Error calling startForeground: ${e.message}")
-        }
-        Log.d("THE LOG", "Service is in the foreground now.")
+        startForegroundService()
 
-        if (startRecording && !isRecording) {
-            startRecordingWithTimer(10000)
-            notificationManager.notify(NOTIFICATION_ID, notification)
+        when {
+            saveRecording -> {
+                stopRecordingAndFindMovieName()
+                return START_NOT_STICKY
+            }
+            startRecording && !isRecording -> {
+                startTimedRecording(durationMillis = 5000)
+            }
         }
 
-        // If we need to save the recording when the app comes to the foreground
-        if (saveRecording) {
-            stopRecording() // Trigger saving the recording
-            return START_NOT_STICKY
-        }
-
-        Log.d("THE LOG", "SERVICE SURELY STARTED")
         return START_NOT_STICKY
     }
 
-    private fun startRecordingWithTimer(durationMillis: Long) {
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
+        if (isRecording) cancelRecording()
+    }
+
+    private fun cancelRecording() {
+        recorder.stop()
+        isRecording = false
+        MSHelperObject.isRecording.value = false
+        outputFile = null
+        notificationManager.cancelAll()
+        notificationManager.deleteNotificationChannel(Constants.CHANNEL_ID)
+    }
+
+    private fun startTimedRecording(durationMillis: Long) = serviceScope.launch {
         try {
-            val file = File(cacheDir, "$RECORDING ${getCurrentMillis()}.m4a")
+            val file = File(cacheDir, "Recording_${getCurrentMillis()}.mp3")
             recorder.start(file)
             outputFile = file
             isRecording = true
             MSHelperObject.isRecording.value = true
-            Log.d("THE LOG", "Recording started!")
 
-            // Automatically stop recording after the specified duration
-            serviceScope.launch {
-                delay(durationMillis)
-                if (isRecording) {
-                    stopRecording()
-                }
-            }
+            // Update notification while recording
+            updateRecordingNotification()
+
+            delay(durationMillis)
+            if (isRecording) stopRecordingAndFindMovieName()
+
         } catch (e: Exception) {
             Log.e("Recording", "Error starting recording: ${e.message}", e)
         }
     }
 
-    private fun stopRecording() {
+    private fun stopRecordingAndFindMovieName() = serviceScope.launch {
         try {
             recorder.stop()
-            Log.d("THE LOG", "Recording stopped. File: $outputFile")
-
             outputFile?.let {
                 val newRecording = Recording(
                     fileName = it.name,
                     filePath = it.absolutePath,
                     dateAdded = "${getCurrentDate()} ${getFormattedTime()} ${getFormattedPeriod()}"
                 )
-                listOfRecordings.value += newRecording
-                saveRecording()
+                MSHelperObject.listOfRecordings.value += newRecording
+                saveRecordingToDatabase()
             }
 
             isRecording = false
-
-            // Clear all existing notifications
-            notificationManager.cancelAll()
-
-            // Display the final notification
-            updateNotification(
-                contentTitle = "Recording Saved",
-                contentText = "Your audio recording has been saved successfully."
-            )
             MSHelperObject.isRecording.value = false
+            updateRecordingNotification("Recording Saved", "Your audio recording has been saved successfully.")
+
+            outputFile?.let { uploadAudioFile(it) }
+
         } catch (e: Exception) {
             Log.e("Recording", "Error stopping recording: ${e.message}", e)
         }
     }
 
-    private fun updateNotification(contentTitle: String, contentText: String) {
-        val notificationChannelId = NOTIFICATION_CHANNEL_ID
-        val activityIntent = Intent(this, MainActivity::class.java)
-        val activityPendingIntent = PendingIntent.getActivity(
-            this,
-            6,
-            activityIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+    private fun saveRecordingToDatabase() = serviceScope.launch {
+        try {
+            dataSource.saveRecordings(MSHelperObject.listOfRecordings.value)
+        } catch (e: Exception) {
+            Log.e("Database", "Error saving recordings: ${e.message}", e)
+        }
+    }
 
-        // Clear all existing notifications
-        notificationManager.cancelAll()
+    private fun uploadAudioFile(file: File) = serviceScope.launch {
+        try {
+            val movieName = apiHelper.uploadFile(file)
+            Log.d("API LOG", "Movie name: $movieName")
+        } catch (e: Exception) {
+            Log.e("API LOG", "Error uploading file: ${e.message}", e)
+        }
+    }
 
-        val updatedNotification = NotificationCompat.Builder(this, notificationChannelId)
+    private fun startForegroundService() {
+        val notification = createRecordingNotification()
+        try {
+            startForeground(Constants.NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            Log.e("THE LOG", "Error calling startForeground: ${e.message}")
+        }
+    }
+
+    private fun updateRecordingNotification(contentTitle: String = "Recording Audio...", contentText: String = "Listening...") {
+        val notification = NotificationCompat.Builder(this, Constants.CHANNEL_ID)
             .setContentTitle(contentTitle)
             .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_launcher_background)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setOngoing(false) // Notification is no longer ongoing
-            .setContentIntent(activityPendingIntent) // Optional: allow navigation back to the app
+            .setOngoing(true)
+            .setContentIntent(createMainActivityPendingIntent())
             .build()
 
-        // Issue the new notification with a specific ID
-        notificationManager.notify(NOTIFICATION_ID, updatedNotification)
+        notificationManager.notify(Constants.NOTIFICATION_ID, notification)
     }
 
-
-
-    private fun saveRecording() = serviceScope.launch(Dispatchers.IO) {
-        repository.saveRecordings(listOfRecordings.value)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d("THE LOG", "Service stopped")
-        serviceScope.cancel()
-        if (isRecording) stopRecording()
-    }
-
-    override fun onBind(intent: Intent?): IBinder? {
-        return null // Not binding this service
-    }
-
-    private fun createNotification(): Notification {
-        val notificationChannelId = NOTIFICATION_CHANNEL_ID
-        val activityIntent = Intent(this, MainActivity::class.java)
-        val activityPendingIntent = PendingIntent.getActivity(
-            this,
-            4,
-            activityIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                notificationChannelId,
-                "Audio Recording",
-                NotificationManager.IMPORTANCE_HIGH
-            )
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        return NotificationCompat.Builder(this, notificationChannelId)
-            .setContentTitle("Recording Audio, please wait.")
+    private fun createRecordingNotification(): Notification {
+        return NotificationCompat.Builder(this, Constants.CHANNEL_ID)
+            .setContentTitle("Recording Audio...")
             .setContentText("Listening...")
             .setSmallIcon(R.drawable.ic_launcher_background)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(true)
-            .setContentIntent(activityPendingIntent) // Optional: allow navigation back to the app
+            .setContentIntent(createMainActivityPendingIntent())
             .build()
     }
-//
-//    private fun createFullScreenNotification(): Notification {
-//        val notificationChannelId = "AudioRecordingChannel"
-//        val activityIntent = Intent(this, MainActivity::class.java)
-//        val fullScreenPendingIntent = PendingIntent.getActivity(
-//            this,
-//            5,
-//            activityIntent,
-//            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-//        )
-//
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//            val channel = NotificationChannel(
-//                notificationChannelId,
-//                "Audio Recording Alerts",
-//                NotificationManager.IMPORTANCE_HIGH // High importance for full-screen notifications
-//            )
-//            channel.description = "Notifications for ongoing or urgent audio recording events."
-//            notificationManager.createNotificationChannel(channel)
-//        }
-//
-//        return NotificationCompat.Builder(this, notificationChannelId)
-//            .setContentTitle("Recording Audio")
-//            .setContentText("Your audio recording is in progress.")
-//            .setSmallIcon(R.drawable.ic_launcher_background)
-//            .setPriority(NotificationCompat.PRIORITY_HIGH) // Ensure high priority
-//            .setCategory(NotificationCompat.CATEGORY_ALARM) // Categorize as an alarm
-//            .setOngoing(true)
-//            .setFullScreenIntent(fullScreenPendingIntent, true) // Full-screen intent
-//            .build()
-//    }
 
-    companion object Constants {
-        const val NOTIFICATION_ID = 100
-        const val RECORDING = "Recording"
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                Constants.CHANNEL_ID,
+                "Movie Shazam",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Handles all notifications for Movie Shazam app"
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun createMainActivityPendingIntent(): PendingIntent {
+        val intent = Intent(this, MainActivity::class.java)
+        return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    companion object {
+        // Constants moved to a separate file for better organization and maintainability
     }
 }
-
-//
-//private fun updateNotification(contentText: String) {
-//    val notificationChannelId = "AudioRecordingChannel"
-//    val activityIntent = Intent(this, MainActivity::class.java)
-//    val activityPendingIntent = PendingIntent.getActivity(
-//        this,
-//        4,
-//        activityIntent,
-//        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-//    )
-//
-//    val updatedNotification = NotificationCompat.Builder(this, notificationChannelId)
-//        .setContentTitle("Recording Audio")
-//        .setContentText(contentText)
-//        .setSmallIcon(R.drawable.ic_launcher_background)
-//        .setOngoing(true)
-//        .addAction(
-//            R.drawable.ic_launcher_background,
-//            "Reset",
-//            activityPendingIntent
-//        )
-//        .build()
-//
-//    notificationManager.notify(NOTIFICATION_ID, updatedNotification) // Use the same notification ID
-//}

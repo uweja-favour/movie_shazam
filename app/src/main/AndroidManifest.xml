@@ -19,6 +19,7 @@
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="CAPTURE_MEDIA_OUTPUT" />
     <uses-permission android:name="CAPTURE_TUNER_AUDIO_INPUT" />
+    <uses-permission android:name="android.permission.INTERNET"/>
 
 
 

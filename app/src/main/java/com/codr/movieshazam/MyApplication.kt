@@ -1,6 +1,11 @@
 package com.codr.movieshazam
 
+import android.annotation.SuppressLint
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.codr.movieshazam.ui.presentation.recording.RSViewModel
 import dagger.hilt.android.HiltAndroidApp
@@ -18,6 +23,5 @@ class MyApplication: Application() {
             context = this
         ))
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
-//        createAppNotificationChannel()
     }
 }

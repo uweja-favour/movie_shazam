@@ -63,7 +63,7 @@ fun RecordingScreen(onStopRecording: () -> Unit) {
 
 
 @Composable
-fun PulsatingRecordingAnimation(onStopRecording: () -> Unit) {
+private fun PulsatingRecordingAnimation(onStopRecording: () -> Unit) {
     val screenWidth = LocalConfiguration.current.screenWidthDp
     // Infinite transition for pulsating animation
     val infiniteTransition = rememberInfiniteTransition(label = "")

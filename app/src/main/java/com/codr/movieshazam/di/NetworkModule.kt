@@ -1,5 +1,7 @@
 package com.codr.movieshazam.di
 
+import com.codr.movieshazam.data.remote.ApiHelper
+import com.codr.movieshazam.data.remote.ApiHelperImpl
 import com.codr.movieshazam.data.remote.MovieShazamApi
 import com.codr.movieshazam.ui.util.Constants.BASE_URL
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -10,6 +12,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
@@ -33,7 +36,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofitInstance (httpClient: OkHttpClient): Retrofit {
-        val contentType = MediaType.get("application/json")
+        val contentType = "application/json".toMediaType()
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(httpClient)
@@ -46,5 +49,11 @@ object NetworkModule {
     @Singleton
     fun provideMovieShazamApi(retrofit: Retrofit): MovieShazamApi {
         return retrofit.create(MovieShazamApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideApiHelper(movieShazamApi: MovieShazamApi): ApiHelper {
+        return ApiHelperImpl(movieShazamApi)
     }
 }

@@ -7,7 +7,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,7 +34,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,27 +41,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.codr.movieshazam.data.Recording
-import com.codr.movieshazam.ui.theme.MEDIUM_PADDING
 import com.codr.movieshazam.ui.theme.MEDIUM_SMALL_PADDING
 import com.codr.movieshazam.ui.theme.SMALL_PADDING
 
 @Composable
 fun CustomListItem(
-    viewModel: RSViewModel,
     item: Recording,
+    noOfCheckedItems: Int,
     title: String,
     subtitle: String,
     isChecked: Boolean,
     onCheckedChange: (Boolean, Recording) -> Unit
 ) {
     val screenWidth = LocalConfiguration.current.screenWidthDp
-    val noOfCheckedItems by viewModel.noOfCheckedItems.collectAsState()
     var scale by remember { mutableFloatStateOf(1f) }
 
     Surface(

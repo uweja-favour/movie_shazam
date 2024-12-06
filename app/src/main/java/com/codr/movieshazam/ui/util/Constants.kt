@@ -43,16 +43,17 @@ object Constants {
     )
 
 
-    const val RECORD = "record"
-    const val STOP_RECORD = "stop_record"
-    const val PLAY = "play"
-    const val STOP_PLAYING = "stop_playing"
+
     const val PLAYBACK_COMPLETE = "playback_completed"
     const val RECORDING = "Recording"
     const val SNACK_BAR_EVENT = "snack_bar_event"
-    const val BASE_URL = ""
+    const val BASE_URL = "https://movie-shazam.onrender.com/"
     const val PREFS_NAME = "app_prefs"
     const val KEY_POST_NOTIFICATIONS_GRANTED = "post_notifications_granted"
     const val GET_POST_NOTIFICATIONS_EVENT = "get_post_notifications_event"
-    const val NOTIFICATION_CHANNEL_ID = "AudioRecordingChannel"
+    const val START_RECORDING = "start_recording"
+    const val SAVE_RECORDING = "save_recording"
+    const val CHANNEL_ID = "the_channel_id"
+    const val NOTIFICATION_ID = 1
+    const val RECORD_AUDIO = "record_audio"
 }

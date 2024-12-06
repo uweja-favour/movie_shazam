@@ -14,7 +14,7 @@ class AndroidAudioRecorder(
 
     private var recorder: MediaRecorder? = null
     private var isRecording = false
-    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     private fun createRecorder(): MediaRecorder {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -22,10 +22,10 @@ class AndroidAudioRecorder(
         } else MediaRecorder()
     }
 
-    private fun getBestAudioSource(audioManager: AudioManager): Int {
-        return if (audioManager.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED) == "true") {
-            MediaRecorder.AudioSource.UNPROCESSED
-        } else {
+    private fun getBestAudioSource(): Int {
+        return try {
+            MediaRecorder.AudioSource.VOICE_RECOGNITION
+        } catch (e: Exception) {
             MediaRecorder.AudioSource.MIC
         }
     }
@@ -34,7 +34,7 @@ class AndroidAudioRecorder(
         if (isRecording) {
             stop()
         }
-        val audioSource = getBestAudioSource(audioManager = audioManager)
+        val audioSource = getBestAudioSource()
         createRecorder().apply {
             setAudioSource(audioSource) // or MIC as fallback
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
