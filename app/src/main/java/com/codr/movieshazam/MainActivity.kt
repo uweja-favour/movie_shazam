@@ -1,6 +1,5 @@
 package com.codr.movieshazam
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.content.Context
@@ -41,6 +40,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.lifecycleScope
+import com.codr.movieshazam.permission_package.PermissionHelper
+import com.codr.movieshazam.permission_package.PermissionTypes
 import com.codr.movieshazam.ui.bottom_navbar.BottomNavigationBar
 import com.codr.movieshazam.ui.presentation.recording.AppBar
 import com.codr.movieshazam.ui.presentation.recording.DropDownItem
@@ -49,15 +50,12 @@ import com.codr.movieshazam.ui.presentation.recording.MainScreen
 import com.codr.movieshazam.ui.presentation.recording.RSViewModel
 import com.codr.movieshazam.ui.theme.MovieShazamTheme
 import com.codr.movieshazam.ui.util.Constants
-import com.codr.movieshazam.ui.util.Constants.KEY_POST_NOTIFICATIONS_GRANTED
 import com.codr.movieshazam.ui.util.Constants.PLAYBACK_COMPLETE
-import com.codr.movieshazam.ui.util.Constants.PREFS_NAME
 import com.codr.movieshazam.ui.util.Constants.SNACK_BAR_EVENT
 import com.codr.movieshazam.ui.util.Constants.navigationItems
 import com.codr.movieshazam.ui.util.Constants.recordAndSave
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
@@ -68,7 +66,6 @@ private var initialPage = 0
 class MainActivity : ComponentActivity() {
 
     private lateinit var permissionHelper: PermissionHelper
-    private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     @SuppressLint("BatteryLife")
@@ -76,24 +73,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Register the launcher in the CREATED phase
-        notificationPermissionLauncher = registerForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { isGranted ->
-            if (isGranted) {
-                Log.d("THE LOG", "Notification permission granted.")
-                setPermissionGranted(true)
-            } else {
-                Log.d("THE LOG", "Notification permission denied.")
-                showSettingsToast()
-            }
-        }
+//        val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
-        // Initialize PermissionHelper with the launcher
-        permissionHelper = PermissionHelper(this, notificationPermissionLauncher)
+        permissionHelper = PermissionHelper(this)
+        val permissionsToRequest = listOf(
+            PermissionTypes.POST_NOTIFICATIONS,
+            PermissionTypes.RECORD_AUDIO,
+        )
 
         lifecycleScope.launch {
-            requestAudioPermission()
+            permissionHelper.requestMultiplePermissions(permissionsToRequest)
         }
 
         setContent {
@@ -106,40 +95,12 @@ class MainActivity : ComponentActivity() {
         promptIgnoreBatteryOptimizations()
     }
 
-    private fun setPermissionGranted(granted: Boolean) {
-        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putBoolean(KEY_POST_NOTIFICATIONS_GRANTED, granted).apply()
-    }
-
     @SuppressLint("BatteryLife")
     private fun promptIgnoreBatteryOptimizations() {
         val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
             data = Uri.parse("package:$packageName")
         }
         startActivity(intent)
-    }
-
-    private fun showSettingsToast() {
-        Toast.makeText(
-            this,
-            "Please enable notifications from app settings.",
-            Toast.LENGTH_LONG
-        ).show()
-    }
-
-    private suspend fun requestAudioPermission() = coroutineScope {
-        if (!permissionHelper.isPermissionGranted(Manifest.permission.RECORD_AUDIO)) {
-            val requestPermissionLauncher = registerForActivityResult(
-                ActivityResultContracts.RequestPermission()
-            ) { isGranted ->
-                if (isGranted) {
-                    Log.d("THE LOG", "Audio recording permission granted.")
-                } else {
-                    Log.d("THE LOG", "Audio recording permission denied.")
-                }
-            }
-            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-        }
     }
 
     override fun onPause() {
@@ -271,9 +232,7 @@ private fun MovieShazam() {
             HorizontalPager(state = pagerState) { pageIndex ->
                 when(pageIndex) {
                     0 -> {
-                        MainScreen(
-                            viewModel = mainScreenVM
-                        )
+                        MainScreen(mainScreenVM)
                     }
                     1 -> {
                         Box(modifier = Modifier.fillMaxSize()) {
